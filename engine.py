@@ -10,6 +10,7 @@ import numpy as np
 
 import model
 from config import config
+from tqdm import tqdm
 
 CLUE_PATTERN = r'^([a-zA-Z]+) ({0})$'
 UNLIMITED = "unlimited"
@@ -60,6 +61,7 @@ class GameEngine(object):
         self.owner[assignments[18:]] = 3  # bystander: 7 words
 
         self.assassin_word = self.board[self.owner == 0]
+        self.given_clues = []
 
         # All cards are initially visible.
         self.visible = np.ones_like(self.owner, dtype=bool)
@@ -128,6 +130,8 @@ class GameEngine(object):
         owner = self.owner.reshape(self.size, self.size)
         visible = self.visible.reshape(self.size, self.size)
 
+        sys.stdout.write('Words left: {}, Opponent: {}\n'.format(len(self.player_words), len(self.opponent_words)))
+
         for row in range(self.size):
             for col in range(self.size):
                 word = board[row, col]
@@ -138,7 +142,7 @@ class GameEngine(object):
                     tag = ' '
                 if not spymaster or owner[row, col] in (0, 1, 2):
                     word = word.upper()
-                sys.stdout.write('{0}{1:11s} '.format(tag, word))
+                sys.stdout.write('{0}{1:11s} '.format(' ', str(word)[2:-1]))
             sys.stdout.write('\n')
 
     def play_computer_spymaster(self, gamma=1.0, verbose=True):
@@ -149,30 +153,42 @@ class GameEngine(object):
         # Loop over all permutations of words.
         num_words = len(self.player_words)
         best_score, saved_clues = [], []
-        for count in range(num_words, 0, -1):
+        counts = range(num_words, 0, -1)
+        groups_and_count = []
+        for count in counts:
+            for group in itertools.combinations(range(num_words), count):
+                groups_and_count.append((group, count,))
+        for group, count in tqdm(groups_and_count):
             # Multiply similarity scores by this factor for any clue
             # corresponding to this many words.
             bonus_factor = count ** gamma
-            for group in itertools.combinations(range(num_words), count):
-                words = self.player_words[list(group)]
-                clue, score = self.model.get_clue(clue_words=words,
-                                                  pos_words=self.player_words,
-                                                  neg_words=np.concatenate((self.opponent_words, self.neutral_words)),
-                                                  veto_words=self.assassin_word)
-                if clue:
-                    best_score.append(score * bonus_factor)
-                    saved_clues.append((clue, words))
+            words = self.player_words[list(group)]
+            clue, score = self.model.get_clue(clue_words=words,
+                                              pos_words=self.player_words,
+                                              neg_words=np.concatenate((self.opponent_words, self.neutral_words)),
+                                              veto_words=self.assassin_word,
+                                              given_clues=self.given_clues)
+            if clue:
+                best_score.append(score * bonus_factor)
+                saved_clues.append((clue, words))
         num_clues = len(saved_clues)
-        order = sorted(xrange(num_clues), key=lambda k: best_score[k], reverse=True)
+        order = sorted(range(num_clues), key=lambda k: best_score[k], reverse=True)
 
-        if verbose:
+        with open('logs/clues.log', 'a+') as f:
+            for i in order[:10]:
+                clue, words = saved_clues[i]
+                f.write(u'{0:.3f} {2} {3} = {1}\n'.format(best_score[i], ' + '.join([str(w).upper()[2:-1] for w in words]), str(clue)[2:-1], len(words)))
+            f.write('\n')
+
+        if verbose or True:
             self.print_board(spymaster=True)
             for i in order[:10]:
                 clue, words = saved_clues[i]
-                say(u'{0:.3f} {1} = {2}'.format(best_score[i], ' + '.join([w.upper() for w in words]), clue))
+                say(u'{0:.3f} {1} = {2}'.format(best_score[i], ' + '.join([str(w).upper() for w in words]), clue))
 
         clue, words = saved_clues[order[0]]
         self.unfound_words[self.player].update(words)
+        self.given_clues.append(clue)
         if self.expert and self._should_say_unlimited(nb_clue_words=len(words)):
             return clue, UNLIMITED
         else:
@@ -210,7 +226,7 @@ class GameEngine(object):
         num_guesses = 0
         while (self.expert and count == UNLIMITED) or num_guesses < count + 1:
             self.print_board(clear_screen=(num_guesses == 0))
-            say(u'{0} your clue is: {1} {2}'.format(self.player_label, word, count))
+            say(u'{0} your clue is: {1} {2}'.format(self.player_label, str(word)[2:-1], count))
 
             num_guesses += 1
             while True:
@@ -219,6 +235,7 @@ class GameEngine(object):
                 if guess == '':
                     # Team does not want to make any more guesses.
                     return True
+                guess = guess.encode('utf8')
                 if guess in self.board[self.visible]:
                     break
                 say('Invalid guess, should be a visible word.')
@@ -287,12 +304,12 @@ class GameEngine(object):
 
 
 def say(message):
-    sys.stdout.write((message + '\n').encode('utf8'))
+    sys.stdout.write(message + '\n')
 
 
 def ask(message):
     try:
-        return raw_input(message)
+        return input(message)
     except KeyboardInterrupt:
         say('\nBye.')
         sys.exit(0)

@@ -2,6 +2,7 @@
 # coding=utf-8
 from __future__ import print_function, division
 
+from tqdm import tqdm
 import argparse
 import io
 import os
@@ -67,15 +68,14 @@ def main():
     import pywikibot
     site = pywikibot.Site('en', 'wikipedia')
 
-    for word in words:
+    for word in tqdm(words):
         out_name = os.path.join(config.corpus_directory, config.template['index'].format(word))
 
         if os.path.isfile(out_name):
             with io.open(out_name, 'r', encoding=config.encoding) as existing:
                 lines = sum(chunk.count('\n')
                             for chunk in iter(partial(existing.read, 2**16), ''))
-            print('File {0} already exists ({1} lines), skipping it.'
-                  .format(out_name, lines))
+            # print('File {0} already exists ({1} lines), skipping it.'.format(out_name, lines))
         else:
             page_titles = set()
             try:
@@ -103,8 +103,7 @@ def main():
                 for title in page_titles:
                     out.write(title + '\n')
 
-            print('Saved index of {0} pages to {1}.'
-                  .format(len(page_titles), out_name))
+            # print('Saved index of {0} pages to {1}.'.format(len(page_titles), out_name))
 
 if __name__ == '__main__':
     main()

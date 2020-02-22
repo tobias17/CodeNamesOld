@@ -9,6 +9,7 @@ import gzip
 import os.path
 
 from config import config
+from tqdm import tqdm
 
 
 def main():
@@ -80,15 +81,14 @@ def main():
                         sentences.append(line)
 
             # Shuffle sentences for this pair of words into a random order.
-            sentence_order = range(len(sentences))
+            sentence_order = list(range(len(sentences)))
             random.shuffle(sentence_order)
 
             # Save shuffled sentences to the output corpus file.
             for j in sentence_order:
                 f_out.write(sentences[j])
 
-            logger.info('Added {0} sentences for ({1}, {2}).'.format(
-                len(sentences), wordlist[i], wordlist[i+1]))
+            logger.info('{3} Added {0} sentences for ({1}, {2}).'.format(len(sentences), wordlist[i], wordlist[i+1], i))
 
         f_out.close()
 
@@ -120,14 +120,11 @@ def main():
         model.alpha = alpha_start
         model.min_alpha = alpha_stop
         # Continue training.
-        model.train(sentences)
+        model.train(sentences, total_examples=model.corpus_count, epochs=model.epochs)
     else:
         # Train a new model.
-        model = gensim.models.word2vec.Word2Vec(
-            sentences, size=args.dimension, window=args.max_distance,
-            min_count=args.min_count, workers=args.workers,
-            alpha=alpha_start, min_alpha=alpha_stop,
-            sg=1, hs=1, iter=args.num_epochs)
+        model = gensim.models.word2vec.Word2Vec(sentences, size=args.dimension, window=args.max_distance, min_count=args.min_count,
+            workers=args.workers, alpha=alpha_start, min_alpha=alpha_stop, sg=1, hs=1, iter=args.num_epochs)
 
     # Save the updated model after this pass.
     save_name = '{0}.{1}'.format(config.embedding, args.npass)

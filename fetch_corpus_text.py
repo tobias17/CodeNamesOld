@@ -13,6 +13,7 @@ import warnings
 import wikipedia
 
 from config import config
+from tqdm import tqdm
 
 dry_run = False
 
@@ -45,7 +46,7 @@ def fetch(word, min_size=5e6):
         # Read all page titles.
         page_titles = [line.rstrip() for line in f_in]
         # Generate a random order of page titles.
-        order = range(len(page_titles))
+        order = list(range(len(page_titles)))
         random.shuffle(order)
         print('Fetching from {0} pages for {1}.'.format(len(page_titles), word))
 
@@ -55,7 +56,6 @@ def fetch(word, min_size=5e6):
         total_size = 0
         num_articles = 0
         with gzip.open(out_name, 'wb') as f_out:
-
             for article_index in order:
                 page_title = page_titles[article_index]
                 # Read this article's plain-text content.

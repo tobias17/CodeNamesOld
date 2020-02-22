@@ -19,6 +19,7 @@ class WordEmbedding(object):
             import gensim.models.word2vec
 
         # Load the model.
+        filename += '.5'
         self.model = gensim.models.word2vec.Word2Vec.load(filename)
 
         # Reduce the memory footprint since we will not be training.
@@ -44,10 +45,10 @@ class WordEmbedding(object):
             return 'theater'
         if word in ('alp', 'alps', 'apline', 'alpinist'):
             return 'alp'
-        return self.lemmatizer.lemmatize(word).encode('ascii', 'ignore')
+        return self.lemmatizer.lemmatize(str(word)).encode('ascii', 'ignore')
 
 
-    def get_clue(self, clue_words, pos_words, neg_words, veto_words,
+    def get_clue(self, clue_words, pos_words, neg_words, veto_words, given_clues=[],
                  veto_margin=0.2, num_search=100, verbose=0):
         """
         """
@@ -62,14 +63,18 @@ class WordEmbedding(object):
         illegal_stems = set([self.get_stem(word) for word in illegal_words])
 
         # Get the internal indices and normalized vectors for each word.
-        clue_indices = [self.model.vocab[word].index for word in clue_words]
-        clue_vectors = self.model.syn0norm[clue_indices]
-        pos_indices = [self.model.vocab[word].index for word in pos_words]
-        pos_vectors = self.model.syn0norm[pos_indices]
-        neg_indices = [self.model.vocab[word].index for word in neg_words]
-        neg_vectors = self.model.syn0norm[neg_indices]
-        veto_indices = [self.model.vocab[word].index for word in veto_words]
-        veto_vectors = self.model.syn0norm[veto_indices]
+        # clue_indices = [self.model.vocab[word].index for word in clue_words]
+        # clue_vectors = self.model.syn0norm[clue_indices]
+        # pos_indices = [self.model.vocab[word].index for word in pos_words]
+        # pos_vectors = self.model.syn0norm[pos_indices]
+        # neg_indices = [self.model.vocab[word].index for word in neg_words]
+        # neg_vectors = self.model.syn0norm[neg_indices]
+        # veto_indices = [self.model.vocab[word].index for word in veto_words]
+        # veto_vectors = self.model.syn0norm[veto_indices]
+        clue_vectors = np.asarray([self.model[str(word)[2:-1]] for word in clue_words])
+        pos_vectors = np.asarray([self.model[str(word)[2:-1]] for word in pos_words])
+        neg_vectors = np.asarray([self.model[str(word)[2:-1]] for word in neg_words])
+        veto_vectors = np.asarray([self.model[str(word)[2:-1]] for word in veto_words])
 
         # Find the normalized mean of the words in the clue group.
         mean_vector = clue_vectors.mean(axis=0)
@@ -77,19 +82,20 @@ class WordEmbedding(object):
 
         # Calculate the cosine distances between the mean vector and all
         # the words in our vocabulary.
-        cosines = np.dot(self.model.syn0norm[:, np.newaxis],
-                         mean_vector).reshape(-1)
+        # cosines = np.dot(self.model[:, np.newaxis], mean_vector).reshape(-1)
 
         # Sort the vocabulary by decreasing cosine similarity with the mean.
-        closest = np.argsort(cosines)[::-1]
+        # closest = np.argsort(cosines)[::-1]
+        closest = self.model.most_similar(positive=[mean_vector], topn=num_search)
 
         # Select the clue whose minimum cosine from the words is largest
         # (i.e., smallest maximum distance).
         best_clue = None
         max_min_cosine = -2.
         for i in range(num_search):
-            clue_index = closest[i]
-            clue = self.model.index2word[clue_index]
+            clue_str, dist = closest[i]
+            clue = clue_str.encode()
+            # clue = self.model.index2word[clue_index]
             # Ignore clues with the same stem as an illegal clue.
             if self.get_stem(clue) in illegal_stems:
                 continue
@@ -102,12 +108,18 @@ class WordEmbedding(object):
                     break
             if contained:
                 continue
+            # check to see if clue has already been give
+            if clue in given_clues:
+                continue
             # Calculate the cosine similarity of this clue with all of the
             # positive, negative and veto words.
-            clue_vector = self.model.syn0norm[clue_index]
-            clue_cosine = np.dot(clue_vectors[:, np.newaxis], clue_vector)
-            neg_cosine = np.dot(neg_vectors[:, np.newaxis], clue_vector)
-            veto_cosine = np.dot(veto_vectors[:, np.newaxis], clue_vector)
+            clue_vector = self.model[clue_str]
+            clue_cosine = [self.model.similarity(clue_str, str(word)[2:-1]) for word in clue_words]
+            neg_cosine = [self.model.similarity(clue_str, str(word)[2:-1]) for word in neg_words]
+            veto_cosine = [self.model.similarity(clue_str, str(word)[2:-1]) for word in veto_words]
+            # for cosine in (clue_cosine, neg_cosine, veto_cosine):
+            #     print(cosine)
+
             # Is this closer to all of the positive words than our previous best?
             min_clue_cosine = np.min(clue_cosine)
             if min_clue_cosine < max_min_cosine:

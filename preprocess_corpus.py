@@ -83,7 +83,7 @@ def main():
                                 cross_freq[w] += 1
                     num_sentences += 1
                     # Save this sentence to the preprocessed output.
-                    f_out.write(line.encode(config.encoding) + '\n')
+                    f_out.write((line + '\n').encode(config.encoding))
 
         print(word, num_sentences, num_words)
         corpus_stats[freq_key] = (num_sentences, num_words)

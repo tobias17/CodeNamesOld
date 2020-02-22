@@ -1,3 +1,6 @@
+This project was branched from https://github.com/dkirkby/CodeNames.
+Below is the original readme.
+
 CodeNames AI
 ============
 

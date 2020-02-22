@@ -1,11 +1,19 @@
 apicache/
 corpus/
+notes/
 corpus_1.gz
+corpus_2.gz
+corpus_3.gz
+corpus_4.gz
+corpus_5.gz
 corpus.txt.gz
 word2vec.dat
 word2vec.dat.*
 freqs.dat
 throttle.ctrl
+board.png
+apicache-py3/
+pywikibot.lwp
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
