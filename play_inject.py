@@ -105,6 +105,8 @@ def main():
                         help='Random seed for reproducible games.')
     parser.add_argument('--init', type=str, default=None,
                         help='Initialize words ASSASSIN;TEAM1;TEAM2;NEUTRAL')
+    parser.add_argument('--hide', type=bool, default=False,
+                        help='Shows only 1 clue, hides what the words for each clue')
     args = parser.parse_args()
 
     if not re.match('^[CH]{4}$', args.config):
@@ -184,11 +186,16 @@ def main():
     input("Loaded successfully! Hit enter to continue: ")
     print_board(board, active)
     values = None
+    index = 0
     while True:
         print_board(board, active)
         if values:
-            for clue, words, best_score in values:
-                say(u'{0:.3f} {2} {3} = {1}'.format(best_score, ' + '.join([str(w).upper()[2:-1] for w in words]), str(clue)[2:-1], len(words)))
+            if args.hide:
+                clue, word, best_score = values[index]
+                say(u'{0:.3f} {1} {2}'.format(best_score, str(clue)[2:-1], len(words)))
+            else:
+                for clue, words, best_score in values:
+                    say(u'{0:.3f} {2} {3} = {1}'.format(best_score, ' + '.join([str(w).upper()[2:-1] for w in words]), str(clue)[2:-1], len(words)))
         text = input().upper()
         if text in ('EXIT', 'QUIT'):
             return
@@ -203,6 +210,15 @@ def main():
                 values = play_computer_spymaster(e, red_words, blue_words, neutral_words, assassin_word)
             else:
                 values = play_computer_spymaster(e, blue_words, red_words, neutral_words, assassin_word)
+            index = 0
+        elif text == 'NEXT':
+            index += 1
+            if index > len(value):
+                index -= len(value)
+        elif text == 'PREV':
+            index -= 1
+            if index < 0:
+                index += len(value)
 
 
 
