@@ -72,6 +72,8 @@ def play_computer_spymaster(engine, player_words, opponent_words, neutral_words,
     num_clues = len(saved_clues)
     order = sorted(range(num_clues), key=lambda k: best_score[k], reverse=True)
 
+    if not os.path.exists('logs'):
+        os.makedirs('logs')
     with open('logs/clues.log', 'a+') as f:
         for i in order[:10]:
             clue, words = saved_clues[i]
