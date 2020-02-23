@@ -164,13 +164,16 @@ def main():
                     # print(avg, color[c])
                     dev[i] += (avg - color[c]) ** 2
             index, smol = 0, dev[0]
-            print(x+1,y+1,dev,text)
             for i in range(1, 4):
                 if dev[i] < smol:
                     smol = dev[i]
                     index = i
             colors_loc[index].append((x,y,))
             word_color_map[text] = color_names[index]
+            if args.hide:
+                print('({}, {}) {}'.format(x+1, y+1, text))
+            else:
+                print('({}, {}) {} - {}'.format(x+1, y+1, text, color_names[index]))
             # cv.imshow('img', erosion)
             # cv.imshow('img_pre', img_sec)
             # cv.waitKey()
@@ -193,7 +196,7 @@ def main():
         print_board(board, active)
         if values:
             if args.hide:
-                clue, word, best_score = values[index]
+                clue, words, best_score = values[index]
                 say(u'{0:.3f} {1} {2}'.format(best_score, str(clue)[2:-1], len(words)))
             else:
                 for clue, words, best_score in values:
@@ -215,12 +218,12 @@ def main():
             index = 0
         elif text == 'NEXT':
             index += 1
-            if index > len(value):
-                index -= len(value)
+            if index >= len(values):
+                index -= len(values)
         elif text == 'PREV':
             index -= 1
             if index < 0:
-                index += len(value)
+                index += len(values)
 
 
 
