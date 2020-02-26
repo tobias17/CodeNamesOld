@@ -46,6 +46,9 @@ class Tracker:
         self.clue_infos[index].assassin_dist[int(assassin_sim[0] * HISTOGRAM_WIDTH)] += 1
 
 
+    def size(self):
+        return sum(self.word_counts)
+
     def save_to_file(self, filename):
         with open(filename, 'w+') as file:
             file.write(','.join(str(word) for word in self.word_counts) + '\n')
@@ -88,11 +91,20 @@ def get_sims(clue, words, e):
     return sims
 
 
+def clear_screen():
+    if platform.system() == 'Windows':
+        os.system('cls')
+    else:
+        sys.stdout.write(chr(27) + '[2J')
+
+
 def main():
     parser = argparse.ArgumentParser(description='Benchmark an ai.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument('--iters', type=int, default=1000, help='How many games should be generated and tested')
     parser.add_argument('--seed', type=int, default=100, help='Random seed to have identical matches to benchmark')
-    parser.add_argument('--filename', type=str, default='benchmark.txt', help='Name of file the benchmark gets saved to')
+    parser.add_argument('--filename', type=str, default='benchmarking/benchmark.txt', help='Name of file the benchmark gets saved to')
+    parser.add_argument('--writealong', type=bool, default=False, help='Writes to file after every loop')
+    parser.add_argument('--pickup', type=bool, default=False, help='Whether to open the file and pick up')
     args = parser.parse_args()
 
     generator = np.random.RandomState(seed=args.seed)
@@ -100,25 +112,29 @@ def main():
     e = engine.GameEngine(seed=args.seed, display=False)
 
     tracker = Tracker()
+    skip_index = 0
+    if args.pickup:
+        tracker.load_from_file(args.filename)
+        skip_index = tracker.size()
+
     clear_screen()
     for i in tqdm(range(args.iters)):
         e.initialize_random_game()
         e.next_turn()
         if i % 2 == 0:
             e.next_turn()
+        if i < skip_index:
+            continue
         e.print_board(clear_screen=False, override=True)
         clue, words = e.play_computer_spymaster(give_words=True)
         tracker.add(str(clue)[2:-1], [str(word)[2:-1] for word in words], e)
         clear_screen()
+        if args.writealong:
+            tracker.save_to_file(args.filename)
     print(tracker.word_counts)
     print("Saving to file...")
     tracker.save_to_file(args.filename)
 
-def clear_screen():
-    if platform.system() == 'Windows':
-        os.system('cls')
-    else:
-        sys.stdout.write(chr(27) + '[2J')
 
 if __name__ == '__main__':
     main()
