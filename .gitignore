@@ -109,3 +109,9 @@ ENV/
 # IntelliJ IDEA
 *.iml
 .idea/
+
+# MacOS
+.DS_Store
+
+# Visual Studio Code
+.vscode/
