@@ -193,7 +193,7 @@ def main():
         print_board(board, active)
         if values:
             if args.hide:
-                clue, word, best_score = values[index]
+                clue, words, best_score = values[index]
                 say(u'{0:.3f} {1} {2}'.format(best_score, str(clue)[2:-1], len(words)))
             else:
                 for clue, words, best_score in values:
@@ -215,12 +215,12 @@ def main():
             index = 0
         elif text == 'NEXT':
             index += 1
-            if index > len(value):
-                index -= len(value)
+            if index >= len(values):
+                index -= len(values)
         elif text == 'PREV':
             index -= 1
             if index < 0:
-                index += len(value)
+                index += len(values)
 
 
 
