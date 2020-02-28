@@ -86,53 +86,17 @@ def play_computer_spymaster(engine, player_words, opponent_words, neutral_words,
         values.append([saved_clues[i][0], saved_clues[i][1], best_score[i],])
     return values
 
-    # clue, words = saved_clues[order[0]]
-    # self.unfound_words[self.player].update(words)
-    # return clue, len(words)
-
 
 colors = [(92.5, 66.7, 66.7), (65.9, 84.7, 92.2), (97.3, 99.2, 100.0), (40.8, 42.4, 42.7)]
 colors = list([np.uint8(c * 2.55) for c in color[::-1]] for color in colors)
 color_names = ['red', 'blue', 'white', 'black']
 
 def main():
-    parser = argparse.ArgumentParser(
-        description='Play the CodeNames game.',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('-c', '--config', type=str, default='CHCH',
-                        help='Config <spy1><team1><spy2><team2> using C,H.')
-    parser.add_argument('-x', '--expert', action='store_true',
-                        help='Expert clues. For now implements \'unlimited\' only.')
-    parser.add_argument('--seed', type=int, default=None,
-                        help='Random seed for reproducible games.')
-    parser.add_argument('--init', type=str, default=None,
-                        help='Initialize words ASSASSIN;TEAM1;TEAM2;NEUTRAL')
-    parser.add_argument('--hide', type=bool, default=False,
-                        help='Shows only 1 clue, hides what the words for each clue')
+    parser = argparse.ArgumentParser(description='Play the CodeNames game.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument('--nohide', type=bool, default=False, help='Shows only 1 clue, hides what the words for each clue')
     args = parser.parse_args()
 
-    if not re.match('^[CH]{4}$', args.config):
-        print('Invalid configuration. Try HHHH or CHCH.')
-        return -1
-
-    d = dict(H='human', C='computer')
-    spy1 = d[args.config[0]]
-    team1 = d[args.config[1]]
-    spy2 = d[args.config[2]]
-    team2 = d[args.config[3]]
-
-    e = engine.GameEngine(seed=args.seed, expert=args.expert)
-
-    # with open('words.txt', encoding='utf-8') as words:
-    #     with open('cluster.txt', 'w+', encoding='utf-8') as output:
-    #         for word in tqdm(words):
-    #             word = word.strip().lower().replace(' ', '_')
-    #             output.write((word + '\n'))
-    #             nearby_words = e.model.model.most_similar(positive=[word])
-    #             for nearby_word in nearby_words:
-    #                 output.write('{0}, {1:.4f}\n'.format(*nearby_word))
-    #             output.write('\n')
-    # return
+    e = engine.GameEngine()
 
     # manual init
     pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
@@ -164,27 +128,21 @@ def main():
                     # print(avg, color[c])
                     dev[i] += (avg - color[c]) ** 2
             index, smol = 0, dev[0]
+            if not args.nohide:
+                print('({},{}) -> {}'.format(x+1,y+1,text))
+            else:
+                print('({},{}) -> {} = {}'.format(x+1,y+1,text,dev))
             for i in range(1, 4):
                 if dev[i] < smol:
                     smol = dev[i]
                     index = i
             colors_loc[index].append((x,y,))
             word_color_map[text] = color_names[index]
-            if args.hide:
-                print('({}, {}) {}'.format(x+1, y+1, text))
-            else:
-                print('({}, {}) {} - {}'.format(x+1, y+1, text, color_names[index]))
             # cv.imshow('img', erosion)
             # cv.imshow('img_pre', img_sec)
             # cv.waitKey()
-    # print(word_color_map)
-    # for i, color_loc in enumerate(colors_loc):
-    #     for loc in color_loc:
-    #         x,y = loc
-    #         img[y*cy:(y+1)*cy,x*cx:(x+1)*cx] = colors[i]
-    # cv.imshow('img', img)
-    # cv.waitKey()
-    # e.board = 
+
+    # play the game
     active = {}
     for word in board:
         active[word] = True
@@ -195,7 +153,7 @@ def main():
     while True:
         print_board(board, active)
         if values:
-            if args.hide:
+            if not args.nohide:
                 clue, words, best_score = values[index]
                 say(u'{0:.3f} {1} {2}'.format(best_score, str(clue)[2:-1], len(words)))
             else:

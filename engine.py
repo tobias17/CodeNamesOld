@@ -15,11 +15,12 @@ from tqdm import tqdm
 CLUE_PATTERN = r'^([a-zA-Z]+) ({0})$'
 UNLIMITED = "unlimited"
 
+display_to_console = True
 
 # noinspection PyAttributeOutsideInit
 class GameEngine(object):
 
-    def __init__(self, seed=None, expert=False):
+    def __init__(self, seed=None, expert=False, display=True):
 
         # Load our word list if necessary.
         # TODO: Max length of 11 is hardcoded here and in print_board()
@@ -37,6 +38,11 @@ class GameEngine(object):
         self.expert = expert
         self.unfound_words = (set(), set())
 
+        # If we want to display to console
+        self.display = display
+        global display_to_console
+        display_to_console = display
+
         # Useful regular expressions.
         if self.expert:
             self.valid_clue = re.compile(CLUE_PATTERN.format("[0-9]|" + UNLIMITED))
@@ -48,8 +54,7 @@ class GameEngine(object):
         self.size = size
 
         # Shuffle the wordlist.
-        shuffle = self.generator.choice(
-            len(self.words), size * size, replace=False)
+        shuffle = self.generator.choice(len(self.words), size * size, replace=False)
         self.board = self.words[shuffle]
 
         # Specify the layout for this game.
@@ -118,7 +123,11 @@ class GameEngine(object):
         self.assassin_word = self.board[self.owner == 0]
         self.num_turns = -1
 
-    def print_board(self, spymaster=False, clear_screen=True):
+    def print_board(self, spymaster=False, clear_screen=True, override=False):
+
+        # Check to see if we want to display, if not return
+        if not self.display and not override:
+            return
 
         if clear_screen:
             if platform.system() == 'Windows':
@@ -145,7 +154,7 @@ class GameEngine(object):
                 sys.stdout.write('{0}{1:11s} '.format(' ', str(word)[2:-1]))
             sys.stdout.write('\n')
 
-    def play_computer_spymaster(self, gamma=1.0, verbose=True):
+    def play_computer_spymaster(self, gamma=1.0, verbose=True, give_words=False):
 
         say('Thinking...')
         sys.stdout.flush()
@@ -158,7 +167,9 @@ class GameEngine(object):
         for count in counts:
             for group in itertools.combinations(range(num_words), count):
                 groups_and_count.append((group, count,))
-        for group, count in tqdm(groups_and_count):
+        if self.display or True:
+            groups_and_count = tqdm(groups_and_count)
+        for group, count in groups_and_count:
             # Multiply similarity scores by this factor for any clue
             # corresponding to this many words.
             bonus_factor = count ** gamma
@@ -191,6 +202,8 @@ class GameEngine(object):
         clue, words = saved_clues[order[0]]
         self.unfound_words[self.player].update(words)
         self.given_clues.append(clue)
+        if give_words:
+            return clue, words
         if self.expert and self._should_say_unlimited(nb_clue_words=len(words)):
             return clue, UNLIMITED
         else:
@@ -306,7 +319,8 @@ class GameEngine(object):
 
 
 def say(message):
-    sys.stdout.write(message + '\n')
+    if display_to_console:
+        sys.stdout.write(message + '\n')
 
 
 def ask(message):

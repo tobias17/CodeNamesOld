@@ -56,7 +56,7 @@ def fetch(word, min_size=5e6):
         total_size = 0
         num_articles = 0
         with gzip.open(out_name, 'wb') as f_out:
-            for article_index in order:
+            for i, article_index in enumerate(order):
                 page_title = page_titles[article_index]
                 # Read this article's plain-text content.
                 with warnings.catch_warnings():
