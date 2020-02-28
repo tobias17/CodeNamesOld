@@ -108,8 +108,13 @@ class WordEmbedding(object):
                     break
             if contained:
                 continue
-            # check to see if clue has already been give
+            # Check to see if clue has already been given
             if clue in given_clues:
+                continue
+            # Manual override of clues not to give
+            # TODO: make this not terrible, abstract out to file
+            if str(clue)[2:-1] not in self.model:
+                # print('BREAK! BREAK! {}'.format(str(clue)[2:-1]))
                 continue
             # Calculate the cosine similarity of this clue with all of the
             # positive, negative and veto words.
