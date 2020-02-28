@@ -12,21 +12,20 @@ import model
 from config import config
 from tqdm import tqdm
 
-CLUE_PATTERN = r'^([a-zA-Z]+) ({0})$'
+CLUE_PATTERN = r"^([a-zA-Z]+) ({0})$"
 UNLIMITED = "unlimited"
 
 display_to_console = True
 
 # noinspection PyAttributeOutsideInit
 class GameEngine(object):
-
     def __init__(self, seed=None, expert=False, display=True):
 
         # Load our word list if necessary.
         # TODO: Max length of 11 is hardcoded here and in print_board()
         with open(config.word_list) as f:
-            _words = [line.rstrip().lower().replace(' ', '_') for line in f.readlines()]
-        self.words = np.array(_words, dtype='S11')
+            _words = [line.rstrip().lower().replace(" ", "_") for line in f.readlines()]
+        self.words = np.array(_words, dtype="S11")
 
         # Initialize our word embedding model if necessary.
         self.model = model.WordEmbedding(config.embedding)
@@ -86,15 +85,15 @@ class GameEngine(object):
         """
         self.size = size
 
-        word_groups = initial_words.split(';')
+        word_groups = initial_words.split(";")
         if len(word_groups) != 4:
-            raise ValueError('Expected 4 groups separated by semicolon.')
+            raise ValueError("Expected 4 groups separated by semicolon.")
 
         board, owner, visible = [], [], []
         for group_index, word_group in enumerate(word_groups):
-            words = word_group.split(',')
+            words = word_group.split(",")
             for word in words:
-                word = word.lower().replace(' ', '_')
+                word = word.lower().replace(" ", "_")
                 if word not in self.words:
                     raise ValueError('Invalid word "{0}".'.format(word))
                 if word in board:
@@ -103,10 +102,10 @@ class GameEngine(object):
                 owner.append(group_index)
                 visible.append(True)
         if len(board) > size * size:
-            raise ValueError('Too many words. Expected <= {0}.'.format(size * size))
+            raise ValueError("Too many words. Expected <= {0}.".format(size * size))
         # Add dummy hidden words if necessary.
         while len(board) < size * size:
-            board.append('---')
+            board.append("---")
             owner.append(3)
             visible.append(False)
 
@@ -130,33 +129,37 @@ class GameEngine(object):
             return
 
         if clear_screen:
-            if platform.system() == 'Windows':
-                os.system('cls')
+            if platform.system() == "Windows":
+                os.system("cls")
             else:
-                sys.stdout.write(chr(27) + '[2J')
+                sys.stdout.write(chr(27) + "[2J")
 
         board = self.board.reshape(self.size, self.size)
         owner = self.owner.reshape(self.size, self.size)
         visible = self.visible.reshape(self.size, self.size)
 
-        sys.stdout.write('Words left: {}, Opponent: {}\n'.format(len(self.player_words), len(self.opponent_words)))
+        sys.stdout.write(
+            "Words left: {}, Opponent: {}\n".format(
+                len(self.player_words), len(self.opponent_words)
+            )
+        )
 
         for row in range(self.size):
             for col in range(self.size):
                 word = board[row, col]
-                tag = '#<>-'[owner[row, col]]
+                tag = "#<>-"[owner[row, col]]
                 if not visible[row, col]:
                     word = tag * 11
                 elif not spymaster:
-                    tag = ' '
+                    tag = " "
                 if not spymaster or owner[row, col] in (0, 1, 2):
                     word = word.upper()
-                sys.stdout.write('{0}{1:11s} '.format(' ', str(word)[2:-1]))
-            sys.stdout.write('\n')
+                sys.stdout.write("{0}{1:11s} ".format(" ", str(word)[2:-1]))
+            sys.stdout.write("\n")
 
     def play_computer_spymaster(self, gamma=1.0, verbose=True, give_words=False):
 
-        say('Thinking...')
+        say("Thinking...")
         sys.stdout.flush()
 
         # Loop over all permutations of words.
@@ -174,30 +177,43 @@ class GameEngine(object):
             # corresponding to this many words.
             bonus_factor = count ** gamma
             words = self.player_words[list(group)]
-            clue, score = self.model.get_clue(clue_words=words,
-                                              pos_words=self.player_words,
-                                              neg_words=np.concatenate((self.opponent_words, self.neutral_words)),
-                                              veto_words=self.assassin_word,
-                                              given_clues=self.given_clues)
+            clue, score = self.model.get_clue(
+                clue_words=words,
+                pos_words=self.player_words,
+                neg_words=np.concatenate((self.opponent_words, self.neutral_words)),
+                veto_words=self.assassin_word,
+                given_clues=self.given_clues,
+            )
             if clue:
                 best_score.append(score * bonus_factor)
                 saved_clues.append((clue, words))
         num_clues = len(saved_clues)
         order = sorted(range(num_clues), key=lambda k: best_score[k], reverse=True)
 
-        if not os.path.exists('logs'):
-            os.makedirs('logs')
-        with open('logs/clues.log', 'a+') as f:
+        if not os.path.exists("logs"):
+            os.makedirs("logs")
+        with open("logs/clues.log", "a+") as f:
             for i in order[:10]:
                 clue, words = saved_clues[i]
-                f.write(u'{0:.3f} {2} {3} = {1}\n'.format(best_score[i], ' + '.join([str(w).upper()[2:-1] for w in words]), str(clue)[2:-1], len(words)))
-            f.write('\n')
+                f.write(
+                    u"{0:.3f} {2} {3} = {1}\n".format(
+                        best_score[i],
+                        " + ".join([str(w).upper()[2:-1] for w in words]),
+                        str(clue)[2:-1],
+                        len(words),
+                    )
+                )
+            f.write("\n")
 
         if verbose or True:
             self.print_board(spymaster=True)
             for i in order[:10]:
                 clue, words = saved_clues[i]
-                say(u'{0:.3f} {1} = {2}'.format(best_score[i], ' + '.join([str(w).upper() for w in words]), clue))
+                say(
+                    u"{0:.3f} {1} = {2}".format(
+                        best_score[i], " + ".join([str(w).upper() for w in words]), clue
+                    )
+                )
 
         clue, words = saved_clues[order[0]]
         self.unfound_words[self.player].update(words)
@@ -217,63 +233,80 @@ class GameEngine(object):
         (3) but all the words hinted by the current and previous clues
             are enough to catch up and win
         """
-        return (len(self.opponent_words) <= threshold_opponent  # (1)
-                and nb_clue_words + 1 < len(self.player_words)  # (2)
-                and self.unfound_words[self.player]
-                                    == set(self.player_words))  # (3)
+        return (
+            len(self.opponent_words) <= threshold_opponent  # (1)
+            and nb_clue_words + 1 < len(self.player_words)  # (2)
+            and self.unfound_words[self.player] == set(self.player_words)
+        )  # (3)
 
     def play_human_spymaster(self):
 
         self.print_board(spymaster=True)
 
         while True:
-            clue = ask('{0} Enter your clue: '.format(self.player_label))
+            clue = ask("{0} Enter your clue: ".format(self.player_label))
             matched = self.valid_clue.match(clue)
             if matched:
                 word, count = matched.groups()
                 if count != UNLIMITED:
                     count = int(count)
                 return word, count
-            say('Invalid clue, should be WORD COUNT.')
+            say("Invalid clue, should be WORD COUNT.")
 
     def play_human_team(self, word, count):
 
         num_guesses = 0
         while (self.expert and count == UNLIMITED) or num_guesses < count + 1:
             self.print_board(clear_screen=(num_guesses == 0))
-            say(u'{0} your clue is: {1} {2}'.format(self.player_label, str(word)[2:-1], count))
+            say(
+                u"{0} your clue is: {1} {2}".format(
+                    self.player_label, str(word)[2:-1], count
+                )
+            )
 
             num_guesses += 1
             while True:
-                guess = ask('{0} enter your guess #{1}: '.format(self.player_label, num_guesses))
-                guess = guess.strip().lower().replace(' ', '_')
-                if guess == '':
+                guess = ask(
+                    "{0} enter your guess #{1}: ".format(self.player_label, num_guesses)
+                )
+                guess = guess.strip().lower().replace(" ", "_")
+                if guess == "":
                     # Team does not want to make any more guesses.
                     return True
-                guess = guess.encode('utf8')
+                guess = guess.encode("utf8")
                 if guess in self.board[self.visible]:
                     break
-                say('Invalid guess, should be a visible word.')
+                say("Invalid guess, should be a visible word.")
 
             loc = np.where(self.board == guess)[0]
             self.visible[loc] = False
 
             if guess == self.assassin_word:
-                say('{0} You guessed the assasin - game over!'.format(self.player_label))
+                say(
+                    "{0} You guessed the assasin - game over!".format(self.player_label)
+                )
                 return False
 
             if guess in self.player_words:
                 self.unfound_words[self.player].discard(guess)
                 if num_guesses == len(self.player_words):
-                    say('{0} You won!!!'.format(self.player_label))
+                    say("{0} You won!!!".format(self.player_label))
                     return False
                 else:
-                    ask('{0} Congratulations, keep going! (hit ENTER)\n'.format(self.player_label))
+                    ask(
+                        "{0} Congratulations, keep going! (hit ENTER)\n".format(
+                            self.player_label
+                        )
+                    )
             else:
                 if guess in self.opponent_words:
-                    ask('{0} Sorry, word from opposing team! (hit ENTER)\n'.format(self.player_label))
+                    ask(
+                        "{0} Sorry, word from opposing team! (hit ENTER)\n".format(
+                            self.player_label
+                        )
+                    )
                 else:
-                    ask('{0} Sorry, bystander! (hit ENTER)\n'.format(self.player_label))
+                    ask("{0} Sorry, bystander! (hit ENTER)\n".format(self.player_label))
                 break
 
         return True
@@ -284,29 +317,37 @@ class GameEngine(object):
         self.player = self.num_turns % 2
         self.opponent = (self.player + 1) % 2
 
-        self.player_label = '<>'[self.player] * 3
+        self.player_label = "<>"[self.player] * 3
         self.player_words = self.board[(self.owner == self.player + 1) & self.visible]
-        self.opponent_words = self.board[(self.owner == self.opponent + 1) & self.visible]
+        self.opponent_words = self.board[
+            (self.owner == self.opponent + 1) & self.visible
+        ]
         self.neutral_words = self.board[(self.owner == 3) & self.visible]
 
-    def play_turn(self, spymaster='human', team='human'):
+    def play_turn(self, spymaster="human", team="human"):
 
         self.next_turn()
 
-        if spymaster == 'human':
+        if spymaster == "human":
             word, count = self.play_human_spymaster()
         else:
             word, count = self.play_computer_spymaster()
 
-        if team == 'human':
+        if team == "human":
             ongoing = self.play_human_team(word, count)
         else:
             raise NotImplementedError()
 
         return ongoing
 
-    def play_game(self, spymaster1='human', team1='human',
-                  spymaster2='human', team2='human', init=None):
+    def play_game(
+        self,
+        spymaster1="human",
+        team1="human",
+        spymaster2="human",
+        team2="human",
+        init=None,
+    ):
 
         if init is None:
             self.initialize_random_game()
@@ -314,18 +355,20 @@ class GameEngine(object):
             self.initialize_from_words(init)
 
         while True:
-            if not self.play_turn(spymaster1, team1): break
-            if not self.play_turn(spymaster2, team2): break
+            if not self.play_turn(spymaster1, team1):
+                break
+            if not self.play_turn(spymaster2, team2):
+                break
 
 
 def say(message):
     if display_to_console:
-        sys.stdout.write(message + '\n')
+        sys.stdout.write(message + "\n")
 
 
 def ask(message):
     try:
         return input(message)
     except KeyboardInterrupt:
-        say('\nBye.')
+        say("\nBye.")
         sys.exit(0)

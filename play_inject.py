@@ -14,38 +14,48 @@ import engine
 
 
 def say(message):
-    sys.stdout.write(message + '\n')
+    sys.stdout.write(message + "\n")
 
 
 def ask(message):
     try:
         return input(message)
     except KeyboardInterrupt:
-        say('\nBye.')
+        say("\nBye.")
         sys.exit(0)
+
 
 def print_board(board, active, clear_screen=True, spymaster=True):
 
     if clear_screen:
-        if platform.system() == 'Windows':
-            os.system('cls')
+        if platform.system() == "Windows":
+            os.system("cls")
         else:
-            sys.stdout.write(chr(27) + '[2J')
+            sys.stdout.write(chr(27) + "[2J")
 
     for row in range(5):
         for col in range(5):
-            index = row*5 + col
+            index = row * 5 + col
             word = board[index]
-            tag = ' '
+            tag = " "
             if not active[word]:
-                word = word + '-' * (11 - len(word))
-                tag = '-'
-            sys.stdout.write('{0}{1:11s} '.format(tag, word))
-        sys.stdout.write('\n')
+                word = word + "-" * (11 - len(word))
+                tag = "-"
+            sys.stdout.write("{0}{1:11s} ".format(tag, word))
+        sys.stdout.write("\n")
 
-def play_computer_spymaster(engine, player_words, opponent_words, neutral_words, assassin_word, gamma=1.0, verbose=True):
 
-    say('Thinking...')
+def play_computer_spymaster(
+    engine,
+    player_words,
+    opponent_words,
+    neutral_words,
+    assassin_word,
+    gamma=1.0,
+    verbose=True,
+):
+
+    say("Thinking...")
     sys.stdout.flush()
 
     # Loop over all permutations of words.
@@ -62,81 +72,110 @@ def play_computer_spymaster(engine, player_words, opponent_words, neutral_words,
         bonus_factor = count ** gamma
         # print(type(player_words), player_words)
         words = player_words[list(group)]
-        clue, score = engine.model.get_clue(clue_words=words,
-                                          pos_words=player_words,
-                                          neg_words=np.concatenate((opponent_words, neutral_words)),
-                                          veto_words=assassin_word)
+        clue, score = engine.model.get_clue(
+            clue_words=words,
+            pos_words=player_words,
+            neg_words=np.concatenate((opponent_words, neutral_words)),
+            veto_words=assassin_word,
+        )
         if clue:
             best_score.append(score * bonus_factor)
             saved_clues.append((clue, words))
     num_clues = len(saved_clues)
     order = sorted(range(num_clues), key=lambda k: best_score[k], reverse=True)
 
-    if not os.path.exists('logs'):
-        os.makedirs('logs')
-    with open('logs/clues.log', 'a+') as f:
+    if not os.path.exists("logs"):
+        os.makedirs("logs")
+    with open("logs/clues.log", "a+") as f:
         for i in order[:10]:
             clue, words = saved_clues[i]
-            f.write(u'{0:.3f} {2} {3} = {1}\n'.format(best_score[i], ' + '.join([str(w).upper()[2:-1] for w in words]), str(clue)[2:-1], len(words)))
-        f.write('\n')
+            f.write(
+                u"{0:.3f} {2} {3} = {1}\n".format(
+                    best_score[i],
+                    " + ".join([str(w).upper()[2:-1] for w in words]),
+                    str(clue)[2:-1],
+                    len(words),
+                )
+            )
+        f.write("\n")
 
     # print_board(board, active, spymaster=True)
     values = []
     for i in order[:10]:
-        values.append([saved_clues[i][0], saved_clues[i][1], best_score[i],])
+        values.append(
+            [saved_clues[i][0], saved_clues[i][1], best_score[i],]
+        )
     return values
 
 
-colors = [(92.5, 66.7, 66.7), (65.9, 84.7, 92.2), (97.3, 99.2, 100.0), (40.8, 42.4, 42.7)]
+colors = [
+    (92.5, 66.7, 66.7),
+    (65.9, 84.7, 92.2),
+    (97.3, 99.2, 100.0),
+    (40.8, 42.4, 42.7),
+]
 colors = list([np.uint8(c * 2.55) for c in color[::-1]] for color in colors)
-color_names = ['red', 'blue', 'white', 'black']
+color_names = ["red", "blue", "white", "black"]
+
 
 def main():
-    parser = argparse.ArgumentParser(description='Play the CodeNames game.', formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--nohide', type=bool, default=False, help='Shows only 1 clue, hides what the words for each clue')
+    parser = argparse.ArgumentParser(
+        description="Play the CodeNames game.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--nohide",
+        type=bool,
+        default=False,
+        help="Shows only 1 clue, hides what the words for each clue",
+    )
     args = parser.parse_args()
 
     e = engine.GameEngine()
 
     # manual init
-    pytesseract.pytesseract.tesseract_cmd = r'C:\\Program Files\\Tesseract-OCR\\tesseract.exe'
-    config = ('-l eng --oem 1 --psm 3')
+    pytesseract.pytesseract.tesseract_cmd = (
+        r"C:\\Program Files\\Tesseract-OCR\\tesseract.exe"
+    )
+    config = "-l eng --oem 1 --psm 3"
     e.size = 5
     pad = 20
-    img = cv.imread('board.png')
-    colors_loc = [ [], [], [], [] ]
+    img = cv.imread("board.png")
+    colors_loc = [[], [], [], []]
     word_color_map = {}
     board = []
     cx, cy = img.shape[1] // 5, img.shape[0] // 5
     for y in range(5):
         for x in range(5):
-            img_sec = img[y*cy+pad:(y+1)*cy-pad,x*cx+pad:(x+1)*cx-pad]
+            img_sec = img[
+                y * cy + pad : (y + 1) * cy - pad, x * cx + pad : (x + 1) * cx - pad
+            ]
             img_gray = cv.cvtColor(img_sec, cv.COLOR_BGR2GRAY)
             avg = np.average(img_gray)
-            mask1 = img_gray[:,:] < avg
-            mask2 = img_gray[:,:] > avg
+            mask1 = img_gray[:, :] < avg
+            mask2 = img_gray[:, :] > avg
             img_gray[mask2] = 0
             img_gray[mask1] = 255
-            kernel = np.ones((3,3),np.uint8)
+            kernel = np.ones((3, 3), np.uint8)
             erosion = cv.erode(img_gray, kernel, iterations=1)
-            text = pytesseract.image_to_string(img_sec, config=config).replace(' ', '_')
+            text = pytesseract.image_to_string(img_sec, config=config).replace(" ", "_")
             board.append(text)
-            dev = [0,0,0,0]
+            dev = [0, 0, 0, 0]
             for c in range(3):
-                avg = np.median(img_sec[:,:,c])
+                avg = np.median(img_sec[:, :, c])
                 for i, color in enumerate(colors):
                     # print(avg, color[c])
                     dev[i] += (avg - color[c]) ** 2
             index, smol = 0, dev[0]
             if not args.nohide:
-                print('({},{}) -> {}'.format(x+1,y+1,text))
+                print("({},{}) -> {}".format(x + 1, y + 1, text))
             else:
-                print('({},{}) -> {} = {}'.format(x+1,y+1,text,dev))
+                print("({},{}) -> {} = {}".format(x + 1, y + 1, text, dev))
             for i in range(1, 4):
                 if dev[i] < smol:
                     smol = dev[i]
                     index = i
-            colors_loc[index].append((x,y,))
+            colors_loc[index].append((x, y,))
             word_color_map[text] = color_names[index]
             # cv.imshow('img', erosion)
             # cv.imshow('img_pre', img_sec)
@@ -155,36 +194,67 @@ def main():
         if values:
             if not args.nohide:
                 clue, words, best_score = values[index]
-                say(u'{0:.3f} {1} {2}'.format(best_score, str(clue)[2:-1], len(words)))
+                say(u"{0:.3f} {1} {2}".format(best_score, str(clue)[2:-1], len(words)))
             else:
                 for clue, words, best_score in values:
-                    say(u'{0:.3f} {2} {3} = {1}'.format(best_score, ' + '.join([str(w).upper()[2:-1] for w in words]), str(clue)[2:-1], len(words)))
+                    say(
+                        u"{0:.3f} {2} {3} = {1}".format(
+                            best_score,
+                            " + ".join([str(w).upper()[2:-1] for w in words]),
+                            str(clue)[2:-1],
+                            len(words),
+                        )
+                    )
         text = input().upper()
-        if text in ('EXIT', 'QUIT'):
+        if text in ("EXIT", "QUIT"):
             return
         if text in board:
             active[text] = not active[text]
-        elif text == 'RED' or text == 'BLUE':
-            red_words = np.asarray([word.lower().encode('utf8') for word in board if active[word] and word_color_map[word] == 'red'])
-            blue_words = np.asarray([word.lower().encode('utf8') for word in board if active[word] and word_color_map[word] == 'blue'])
-            neutral_words = np.asarray([word.lower().encode('utf8') for word in board if active[word] and word_color_map[word] == 'white'])
-            assassin_word = [word.lower().encode('utf8') for word in board if active[word] and word_color_map[word] == 'black']
-            if text == 'RED':
-                values = play_computer_spymaster(e, red_words, blue_words, neutral_words, assassin_word)
+        elif text == "RED" or text == "BLUE":
+            red_words = np.asarray(
+                [
+                    word.lower().encode("utf8")
+                    for word in board
+                    if active[word] and word_color_map[word] == "red"
+                ]
+            )
+            blue_words = np.asarray(
+                [
+                    word.lower().encode("utf8")
+                    for word in board
+                    if active[word] and word_color_map[word] == "blue"
+                ]
+            )
+            neutral_words = np.asarray(
+                [
+                    word.lower().encode("utf8")
+                    for word in board
+                    if active[word] and word_color_map[word] == "white"
+                ]
+            )
+            assassin_word = [
+                word.lower().encode("utf8")
+                for word in board
+                if active[word] and word_color_map[word] == "black"
+            ]
+            if text == "RED":
+                values = play_computer_spymaster(
+                    e, red_words, blue_words, neutral_words, assassin_word
+                )
             else:
-                values = play_computer_spymaster(e, blue_words, red_words, neutral_words, assassin_word)
+                values = play_computer_spymaster(
+                    e, blue_words, red_words, neutral_words, assassin_word
+                )
             index = 0
-        elif text == 'NEXT':
+        elif text == "NEXT":
             index += 1
             if index >= len(values):
                 index -= len(values)
-        elif text == 'PREV':
+        elif text == "PREV":
             index -= 1
             if index < 0:
                 index += len(values)
 
 
-
-
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()

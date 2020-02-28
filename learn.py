@@ -14,49 +14,71 @@ from tqdm import tqdm
 
 def main():
     parser = argparse.ArgumentParser(
-        description='Merge training corpus.',
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--npass', type=int, default=1,
-                        help='Perform this pass number (1-5).')
-    parser.add_argument('--num-epochs', type=int, default=5,
-                        help='Number of training epochs to run per pass.')
-    parser.add_argument('--dimension', type=int, default=300,
-                        help='Dimension of word vectors to learn.')
-    parser.add_argument('--min-count', type=int, default=150,
-                        help='Ignore words with fewer occurences.')
-    parser.add_argument('--max-distance', type=int, default=10,
-                        help='Max distance between words within a sentence')
-    parser.add_argument('--workers', type=int, default=4,
-                        help='Number of workers to distribute workload across.')
-    parser.add_argument('--log-level', type=str, default='INFO',
-                        choices=('CRITICAL', 'ERROR', 'WARNING',
-                                 'INFO', 'DEBUG'),
-                        help='Filter out log messages below this level.')
+        description="Merge training corpus.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
+    parser.add_argument(
+        "--npass", type=int, default=1, help="Perform this pass number (1-5)."
+    )
+    parser.add_argument(
+        "--num-epochs",
+        type=int,
+        default=5,
+        help="Number of training epochs to run per pass.",
+    )
+    parser.add_argument(
+        "--dimension", type=int, default=300, help="Dimension of word vectors to learn."
+    )
+    parser.add_argument(
+        "--min-count", type=int, default=150, help="Ignore words with fewer occurences."
+    )
+    parser.add_argument(
+        "--max-distance",
+        type=int,
+        default=10,
+        help="Max distance between words within a sentence",
+    )
+    parser.add_argument(
+        "--workers",
+        type=int,
+        default=4,
+        help="Number of workers to distribute workload across.",
+    )
+    parser.add_argument(
+        "--log-level",
+        type=str,
+        default="INFO",
+        choices=("CRITICAL", "ERROR", "WARNING", "INFO", "DEBUG"),
+        help="Filter out log messages below this level.",
+    )
     args = parser.parse_args()
 
     # Configure logging.
     logging.basicConfig(
-        format='%(asctime)s : %(levelname)s : %(message)s',
-        level=getattr(logging, args.log_level))
-    logger = logging.getLogger('learn')
+        format="%(asctime)s : %(levelname)s : %(message)s",
+        level=getattr(logging, args.log_level),
+    )
+    logger = logging.getLogger("learn")
 
     # Look for an existing corpus for this pass.
-    corpus_name = 'corpus_{0}.gz'.format(args.npass)
+    corpus_name = "corpus_{0}.gz".format(args.npass)
     if os.path.exists(corpus_name):
-        logger.info('Using corpus {0}'.format(corpus_name))
+        logger.info("Using corpus {0}".format(corpus_name))
     else:
         # Read the wordlist into memory.
-        with open(config.word_list, 'r') as f:
+        with open(config.word_list, "r") as f:
             wordlist = [w.strip().capitalize() for w in f]
-        logger.info('Read {0} words from {1}.'
-                    .format(len(wordlist), config.word_list))
+        logger.info("Read {0} words from {1}.".format(len(wordlist), config.word_list))
 
         # Open the output corpus file for this pass.
-        f_out = gzip.open(corpus_name, 'wb')
+        f_out = gzip.open(corpus_name, "wb")
 
         # Perform a reproducible random shuffle of the wordlist.
-        logger.info('Shuffling the corpus for pass {0} into {1}...'
-                    .format(args.npass, corpus_name))
+        logger.info(
+            "Shuffling the corpus for pass {0} into {1}...".format(
+                args.npass, corpus_name
+            )
+        )
         random.seed(args.npass)
         random.shuffle(wordlist)
 
@@ -66,17 +88,19 @@ def main():
             # Read content for the first word of this pair into memory.
             in_name = os.path.join(
                 config.corpus_directory,
-                config.template['preprocess'].format(wordlist[i]))
-            with gzip.open(in_name, 'rb') as f_in:
+                config.template["preprocess"].format(wordlist[i]),
+            )
+            with gzip.open(in_name, "rb") as f_in:
                 for line in f_in:
                     sentences.append(line)
             # The last "pair" might be a single.
             if i < len(wordlist) - 1:
                 in_name = os.path.join(
                     config.corpus_directory,
-                    config.template['preprocess'].format(wordlist[i+1]))
+                    config.template["preprocess"].format(wordlist[i + 1]),
+                )
                 # Read content for the second word of this pair into memory.
-                with gzip.open(in_name, 'rb') as f_in:
+                with gzip.open(in_name, "rb") as f_in:
                     for line in f_in:
                         sentences.append(line)
 
@@ -88,31 +112,34 @@ def main():
             for j in sentence_order:
                 f_out.write(sentences[j])
 
-            logger.info('{3} Added {0} sentences for ({1}, {2}).'.format(len(sentences), wordlist[i], wordlist[i+1], i))
+            logger.info(
+                "{3} Added {0} sentences for ({1}, {2}).".format(
+                    len(sentences), wordlist[i], wordlist[i + 1], i
+                )
+            )
 
         f_out.close()
 
     # Import gensim here so we can mute a UserWarning about the Pattern
     # library not being installed.
     with warnings.catch_warnings():
-        warnings.simplefilter('ignore', UserWarning)
+        warnings.simplefilter("ignore", UserWarning)
         import gensim.models.word2vec
 
     # Use the training sentences for this pass.
     sentences = gensim.models.word2vec.LineSentence(corpus_name)
 
     # Calculate start and stop learning rates for this pass.
-    alpha_start = 0.025 - 0.005 * (args.npass - 1.) + 0.0001
+    alpha_start = 0.025 - 0.005 * (args.npass - 1.0) + 0.0001
     alpha_stop = 0.025 - 0.005 * args.npass + 0.0001
     if alpha_stop <= 0:
-        print('Invalid npass gives negative learning rate.')
+        print("Invalid npass gives negative learning rate.")
         return -1
-    logger.info('Learning rate: {0:.4f} -> {1:.4f}'
-                .format(alpha_start, alpha_stop))
+    logger.info("Learning rate: {0:.4f} -> {1:.4f}".format(alpha_start, alpha_stop))
 
     if args.npass > 1:
         # Load a previously trained model.
-        prev_name = '{0}.{1}'.format(config.embedding, args.npass - 1)
+        prev_name = "{0}.{1}".format(config.embedding, args.npass - 1)
         model = gensim.models.word2vec.Word2Vec.load(prev_name)
         # Update parameters from the command line.
         model.workers = args.workers
@@ -123,13 +150,23 @@ def main():
         model.train(sentences, total_examples=model.corpus_count, epochs=model.epochs)
     else:
         # Train a new model.
-        model = gensim.models.word2vec.Word2Vec(sentences, size=args.dimension, window=args.max_distance, min_count=args.min_count,
-            workers=args.workers, alpha=alpha_start, min_alpha=alpha_stop, sg=1, hs=1, iter=args.num_epochs)
+        model = gensim.models.word2vec.Word2Vec(
+            sentences,
+            size=args.dimension,
+            window=args.max_distance,
+            min_count=args.min_count,
+            workers=args.workers,
+            alpha=alpha_start,
+            min_alpha=alpha_stop,
+            sg=1,
+            hs=1,
+            iter=args.num_epochs,
+        )
 
     # Save the updated model after this pass.
-    save_name = '{0}.{1}'.format(config.embedding, args.npass)
+    save_name = "{0}.{1}".format(config.embedding, args.npass)
     model.save(save_name)
 
 
-if __name__ == '__main__':
+if __name__ == "__main__":
     main()
