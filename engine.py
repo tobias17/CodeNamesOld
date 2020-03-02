@@ -162,31 +162,8 @@ class GameEngine(object):
         say("Thinking...")
         sys.stdout.flush()
 
-        # Loop over all permutations of words.
-        num_words = len(self.player_words)
-        best_score, saved_clues = [], []
-        counts = range(num_words, 0, -1)
-        groups_and_count = []
-        for count in counts:
-            for group in itertools.combinations(range(num_words), count):
-                groups_and_count.append((group, count,))
-        if self.display or True:
-            groups_and_count = tqdm(groups_and_count)
-        for group, count in groups_and_count:
-            # Multiply similarity scores by this factor for any clue
-            # corresponding to this many words.
-            bonus_factor = count ** gamma
-            words = self.player_words[list(group)]
-            clue, score = self.model.get_clue(
-                clue_words=words,
-                pos_words=self.player_words,
-                neg_words=np.concatenate((self.opponent_words, self.neutral_words)),
-                veto_words=self.assassin_word,
-                given_clues=self.given_clues,
-            )
-            if clue:
-                best_score.append(score * bonus_factor)
-                saved_clues.append((clue, words))
+        saved_clues, best_score = self.get_clue_list_pair_stretch(gamma, verbose)
+
         num_clues = len(saved_clues)
         order = sorted(range(num_clues), key=lambda k: best_score[k], reverse=True)
 
@@ -224,6 +201,70 @@ class GameEngine(object):
             return clue, UNLIMITED
         else:
             return clue, len(words)
+
+
+    def get_clue_list_pair_stretch(self, gamma, verbose, max_group=2, does_stretch=[2]):
+        # Loop over all permutations of words.
+        num_words = len(self.player_words)
+        best_score, saved_clues = [], []
+        counts = range(min(num_words, max_group), 0, -1)
+        groups_and_count = []
+        for count in counts:
+            for group in itertools.combinations(range(num_words), count):
+                groups_and_count.append((group, count,))
+        if self.display or True:
+            groups_and_count = tqdm(groups_and_count)
+        for group, count in groups_and_count:
+            # Multiply similarity scores by this factor for any clue
+            # corresponding to this many words.
+            bonus_factor = count ** gamma
+            words = self.player_words[list(group)]
+            clue, score, stretch = self.model.get_clue_stretch(
+                clue_words=words,
+                pos_words=self.player_words,
+                neg_words=self.opponent_words,
+                neut_words=self.neutral_words,
+                veto_words=self.assassin_word,
+                given_clues=self.given_clues,
+                give_stretch=(count in does_stretch),
+            )
+            if clue:
+                best_score.append(score * bonus_factor)
+                clue_words = words
+                if stretch:
+                    clue_words = np.concatenate((words, np.asarray(stretch)))
+                saved_clues.append((clue, clue_words))
+        return saved_clues, best_score
+
+
+    def get_clue_list_dkirkby(self, gamma, verbose):
+        # Loop over all permutations of words.
+        num_words = len(self.player_words)
+        best_score, saved_clues = [], []
+        counts = range(num_words, 0, -1)
+        groups_and_count = []
+        for count in counts:
+            for group in itertools.combinations(range(num_words), count):
+                groups_and_count.append((group, count,))
+        if self.display or True:
+            groups_and_count = tqdm(groups_and_count)
+        for group, count in groups_and_count:
+            # Multiply similarity scores by this factor for any clue
+            # corresponding to this many words.
+            bonus_factor = count ** gamma
+            words = self.player_words[list(group)]
+            clue, score = self.model.get_clue(
+                clue_words=words,
+                pos_words=self.player_words,
+                neg_words=np.concatenate((self.opponent_words, self.neutral_words)),
+                veto_words=self.assassin_word,
+                given_clues=self.given_clues,
+            )
+            if clue:
+                best_score.append(score * bonus_factor)
+                saved_clues.append((clue, words))
+        return saved_clues
+
 
     def _should_say_unlimited(self, nb_clue_words, threshold_opponent=2):
         """

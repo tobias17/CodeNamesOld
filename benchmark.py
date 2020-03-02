@@ -147,7 +147,7 @@ def main():
     parser.add_argument(
         "--filename",
         type=str,
-        default="benchmarking/benchmark.txt",
+        default="benchmarks/benchmark.txt",
         help="Name of file the benchmark gets saved to",
     )
     parser.add_argument(
