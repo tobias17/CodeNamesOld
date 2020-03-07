@@ -10,6 +10,7 @@ corpus_5.gz
 corpus.txt.gz
 word2vec.dat
 word2vec.dat.*
+word2vec-*.zip
 freqs.dat
 throttle.ctrl
 board.png

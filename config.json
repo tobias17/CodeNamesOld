@@ -3,6 +3,7 @@
     "word_list":        "words.txt",
     "embedding":        "word2vec.dat",
     "encoding":         "utf8",
+    "logs_folder":		"logs",
     "template": {
         "index":        "{0}.index",
         "articles":     "{0}.txt.gz",

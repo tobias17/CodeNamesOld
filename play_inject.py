@@ -10,6 +10,9 @@ import platform
 import itertools
 from tqdm import tqdm
 
+from config import config
+from datetime import datetime
+
 import engine
 
 
@@ -44,6 +47,7 @@ def print_board(board, active, clear_screen=True, spymaster=True):
             sys.stdout.write("{0}{1:11s} ".format(tag, word))
         sys.stdout.write("\n")
 
+# TODO: this needs to be piped into engine, not copied and pasted
 
 def play_computer_spymaster(
     engine,
@@ -58,35 +62,68 @@ def play_computer_spymaster(
     say("Thinking...")
     sys.stdout.flush()
 
-    # Loop over all permutations of words.
+    # # Loop over all permutations of words.
+    # num_words = len(player_words)
+    # best_score, saved_clues = [], []
+    # counts = range(num_words, 0, -1)
+    # groups_and_count = []
+    # for count in counts:
+    #     for group in itertools.combinations(range(num_words), count):
+    #         groups_and_count.append((group, count,))
+    # for group, count in tqdm(groups_and_count):
+    #     # Multiply similarity scores by this factor for any clue
+    #     # corresponding to this many words.
+    #     bonus_factor = count ** gamma
+    #     # print(type(player_words), player_words)
+    #     words = player_words[list(group)]
+    #     clue, score = engine.model.get_clue(
+    #         clue_words=words,
+    #         pos_words=player_words,
+    #         neg_words=np.concatenate((opponent_words, neutral_words)),
+    #         veto_words=assassin_word,
+    #     )
+    #     if clue:
+    #         best_score.append(score * bonus_factor)
+    #         saved_clues.append((clue, words))
+    # num_clues = len(saved_clues)
+    # order = sorted(range(num_clues), key=lambda k: best_score[k], reverse=True)
+
+    max_group = 2
+    does_stretch = [2]
     num_words = len(player_words)
     best_score, saved_clues = [], []
-    counts = range(num_words, 0, -1)
+    counts = range(min(num_words, max_group), 0, -1)
     groups_and_count = []
     for count in counts:
         for group in itertools.combinations(range(num_words), count):
             groups_and_count.append((group, count,))
-    for group, count in tqdm(groups_and_count):
+    groups_and_count = tqdm(groups_and_count)
+    for group, count in groups_and_count:
         # Multiply similarity scores by this factor for any clue
         # corresponding to this many words.
         bonus_factor = count ** gamma
-        # print(type(player_words), player_words)
         words = player_words[list(group)]
-        clue, score = engine.model.get_clue(
+        clue, score, stretch = engine.model.get_clue_stretch(
             clue_words=words,
             pos_words=player_words,
-            neg_words=np.concatenate((opponent_words, neutral_words)),
+            neg_words=opponent_words,
+            neut_words=neutral_words,
             veto_words=assassin_word,
+            give_stretch=(count in does_stretch),
         )
         if clue:
             best_score.append(score * bonus_factor)
-            saved_clues.append((clue, words))
+            clue_words = words
+            if stretch:
+                clue_words = np.concatenate((words, np.asarray(stretch)))
+            saved_clues.append((clue, clue_words))
+
     num_clues = len(saved_clues)
     order = sorted(range(num_clues), key=lambda k: best_score[k], reverse=True)
 
-    if not os.path.exists("logs"):
-        os.makedirs("logs")
-    with open("logs/clues.log", "a+") as f:
+    if not os.path.exists(config.logs_folder):
+        os.makedirs(config.logs_folder)
+    with open(engine.logs_filename, 'a+') as f:
         for i in order[:10]:
             clue, words = saved_clues[i]
             f.write(

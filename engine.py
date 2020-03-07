@@ -7,6 +7,7 @@ import os
 import platform
 
 import numpy as np
+from datetime import datetime
 
 import model
 from config import config
@@ -29,6 +30,7 @@ class GameEngine(object):
 
         # Initialize our word embedding model if necessary.
         self.model = model.WordEmbedding(config.embedding)
+        self.logs_filename = '{}/{}.log'.format(config.logs_folder, str(datetime.now()).replace(' ', '_').replace(':', '-').replace('.', '-'))
 
         # Initialize random numbers.
         self.generator = np.random.RandomState(seed=seed)
@@ -167,9 +169,9 @@ class GameEngine(object):
         num_clues = len(saved_clues)
         order = sorted(range(num_clues), key=lambda k: best_score[k], reverse=True)
 
-        if not os.path.exists("logs"):
-            os.makedirs("logs")
-        with open("logs/clues.log", "a+") as f:
+        if not os.path.exists(config.logs_folder):
+            os.makedirs(config.logs_folder)
+        with open(self.logs_filename, 'a+') as f:
             for i in order[:10]:
                 clue, words = saved_clues[i]
                 f.write(
