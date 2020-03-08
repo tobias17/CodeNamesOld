@@ -55,6 +55,7 @@ def play_computer_spymaster(
     opponent_words,
     neutral_words,
     assassin_word,
+    given_clues,
     gamma=1.0,
     verbose=True,
 ):
@@ -109,6 +110,7 @@ def play_computer_spymaster(
             neg_words=opponent_words,
             neut_words=neutral_words,
             veto_words=assassin_word,
+            given_clues=given_clues,
             give_stretch=(count in does_stretch),
         )
         if clue:
@@ -226,12 +228,14 @@ def main():
     print_board(board, active)
     values = None
     index = 0
+    side = ""
+    given_words = []
     while True:
         print_board(board, active)
         if values:
             if not args.nohide:
                 clue, words, best_score = values[index]
-                say(u"{0:.3f} {1} {2}".format(best_score, str(clue)[2:-1], len(words)))
+                say(u"{3}{0:.3f} {1} {2}".format(best_score, str(clue)[2:-1], len(words), side))
             else:
                 for clue, words, best_score in values:
                     say(
@@ -247,6 +251,8 @@ def main():
             return
         if text in board:
             active[text] = not active[text]
+        if text in ("USE", "USED"):
+            given_words.append(clue)
         elif text == "RED" or text == "BLUE":
             red_words = np.asarray(
                 [
@@ -276,12 +282,14 @@ def main():
             ]
             if text == "RED":
                 values = play_computer_spymaster(
-                    e, red_words, blue_words, neutral_words, assassin_word
+                    e, red_words, blue_words, neutral_words, assassin_word, given_words
                 )
+                side = "red: "
             else:
                 values = play_computer_spymaster(
-                    e, blue_words, red_words, neutral_words, assassin_word
+                    e, blue_words, red_words, neutral_words, assassin_word, given_words
                 )
+                side = "blue: "
             index = 0
         elif text == "NEXT":
             index += 1
