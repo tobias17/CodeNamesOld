@@ -29,6 +29,7 @@ def fetch(word, min_size=5e6):
     out_name = os.path.join(
         config.corpus_directory, config.template["articles"].format(word)
     )
+    wikipedia.set_lang("simple")
 
     # Has this word already been fetched?
     if os.path.exists(out_name):
@@ -93,6 +94,7 @@ def fetch(word, min_size=5e6):
 
 def main():
     global dry_run
+    wikipedia.set_lang("simple")
     parser = argparse.ArgumentParser(
         description="Fetch indexed training corpus text.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,

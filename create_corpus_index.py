@@ -72,7 +72,7 @@ def main():
     os.environ["PYWIKIBOT2_NO_USER_CONFIG"] = "2"
     import pywikibot
 
-    site = pywikibot.Site("en", "wikipedia")
+    site = pywikibot.Site("simple", "wikipedia")
 
     for word in tqdm(words):
         out_name = os.path.join(
