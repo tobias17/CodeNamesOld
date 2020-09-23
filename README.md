@@ -1,5 +1,4 @@
-This project was branched from https://github.com/dkirkby/CodeNames.
-Below is the original readme.
+Originally when endeavoring this project, we forked from this project from dkirkby to gain an understanding of a basic ai and how it operates. As we continued work, we realized that we were making drastic changes to every aspect of the program, and decided to start from scratch, where we could build up systems the way we needed, instead of trying to bodge things on top of a system that was not structured in a way we needed it to be.
 
 CodeNames AI
 ============
